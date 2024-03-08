@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alvadorncorp/bunny-go/api"
 	"github.com/alvadorncorp/bunny-go/internal/manager"
+	"github.com/alvadorncorp/bunny-go/pkg/api"
 	"github.com/spf13/cobra"
 )
 

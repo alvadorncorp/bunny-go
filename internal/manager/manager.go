@@ -3,8 +3,8 @@ package manager
 import (
 	"regexp"
 
-	"github.com/alvadorncorp/bunny-go/api"
 	"github.com/alvadorncorp/bunny-go/internal/bunny/storage"
+	"github.com/alvadorncorp/bunny-go/pkg/api"
 )
 
 type UploadArgs struct {
