@@ -2,8 +2,8 @@
 
 ORG_NAME="alvadorncorp"
 PROJECT_NAME="bunny-cli"
-VERSION=$1
-IMAGE_NAME="${ORG_NAME}/${PROJECT_NAME}:${VERSION}"
+VERSION=""
+IMAGE_NAME=""
 PLATFORMS="linux/amd64,linux/arm64,linux/arm/v8,linux/arm/v7"
 
 declare -A XCOMPILE=(
@@ -12,22 +12,34 @@ declare -A XCOMPILE=(
     ["windows"]="arm64 arm 386 amd64"
 )
 
+set-vars() {
+  VERSION="${1:-dev}"
+  IMAGE_NAME="${ORG_NAME}/${PROJECT_NAME}:${VERSION}"
+}
+
 go-test() {
   go test ./...
 }
 
-compile() {
-    for os in "${!XCOMPILE[@]}"
-    do
-        archs="${XCOMPILE[$os]}"
-        for arch in ${archs}
-        do
-            filename="${PROJECT_NAME}-${VERSION}-${os}-${arch}"
-            if [ "$os" == "windows" ];then filename+=".exe"; fi
-            GOOS=$os GOARCH=$arch go build -o "./build/$filename" ./cmd
-            chmod +x "./build/$filename"
-        done
-    done
+build() {
+  go build -o "./build/cli" ./cmd
+}
+
+# shellcheck disable=SC2120
+build-all() {
+  set-vars "$1"
+
+  for os in "${!XCOMPILE[@]}"
+  do
+      archs="${XCOMPILE[$os]}"
+      for arch in ${archs}
+      do
+          filename="${PROJECT_NAME}-${VERSION}-${os}-${arch}"
+          if [ "$os" == "windows" ];then filename+=".exe"; fi
+          GOOS=$os GOARCH=$arch go build -o "./build/$filename" ./cmd
+          chmod +x "./build/$filename"
+      done
+  done
 }
 
 docker-build() {
@@ -52,7 +64,8 @@ docker-push() {
 
 case "$1" in
   test ) go-test;;
-  compile ) "$@";;
-  all ) compile; docker-build; docker-push;;
+  build ) "$@";;
+  build-all ) "$@";;
+  all ) build-all; docker-build; docker-push;;
   * ) echo "command does not exist";;
 esac
