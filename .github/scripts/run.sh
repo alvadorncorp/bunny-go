@@ -12,13 +12,20 @@ declare -A XCOMPILE=(
     ["windows"]="arm64 arm 386 amd64"
 )
 
+go-test() {
+  go test ./...
+}
+
 compile() {
     for os in "${!XCOMPILE[@]}"
     do
         archs="${XCOMPILE[$os]}"
         for arch in ${archs}
         do
-            GOOS=$os GOARCH=$arch go build -o ./build/${PROJECT_NAME}-${VERSION}-${os}-${arch} ./cmd
+            filename="${PROJECT_NAME}-${VERSION}-${os}-${arch}"
+            if [ "$os" == "windows" ];then filename+=".exe"; fi
+            GOOS=$os GOARCH=$arch go build -o "./build/$filename" ./cmd
+            chmod +x "./build/$filename"
         done
     done
 }
@@ -43,7 +50,9 @@ docker-push() {
     docker manifest push ${IMAGE_NAME}
 }
 
-
-compile
-docker-build
-docker-push
+case "$1" in
+  test ) go-test;;
+  compile ) "$@";;
+  all ) compile; docker-build; docker-push;;
+  * ) echo "command does not exist";;
+esac
