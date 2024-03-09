@@ -36,7 +36,7 @@ build-all() {
       do
           filename="${PROJECT_NAME}-${VERSION}-${os}-${arch}"
           if [ "$os" == "windows" ];then filename+=".exe"; fi
-          GOOS=$os GOARCH=$arch go build -o "./build/$filename" ./cmd
+          GOOS=$os GOARCH=$arch go build -o "./build/$filename" ./cmd/cli
           chmod +x "./build/$filename"
       done
   done
