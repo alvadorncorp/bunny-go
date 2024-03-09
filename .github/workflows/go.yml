@@ -18,8 +18,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '>= 1.21.0'
-      - run: go mod tidy
-      - run: ./.github/scripts/run.sh test
+      - run: go mod download
+      - name: run tests
+        run: ./.github/scripts/run.sh test
 
   build:
     name: build job
@@ -31,6 +32,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '>= 1.21.0'
-      - run: go mod tidy
+      - run: go mod download
       - name: build multi platform
         run: ./.github/scripts/run.sh build-all
