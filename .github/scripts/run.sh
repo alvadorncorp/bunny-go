@@ -22,7 +22,7 @@ go-test() {
 }
 
 build() {
-  go build -o "./build/cli" ./cmd
+  go build -o "./build/cli" ./cmd/cli
 }
 
 # shellcheck disable=SC2120

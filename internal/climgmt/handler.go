@@ -1,4 +1,4 @@
-package manager
+package climgmt
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/alvadorncorp/bunny-go/internal/bunny/storage"
+	"github.com/alvadorncorp/bunny-go/internal/logger"
 )
 
 type fileContainer struct {
@@ -14,9 +15,9 @@ type fileContainer struct {
 	filepath string
 }
 
-func readDirFiles(dirpath string, ch chan fileContainer) error {
+func readDirFiles(dirPath string, ch chan fileContainer) error {
 	defer close(ch)
-	if err := readDirFiles2(dirpath, "", ch); err != nil {
+	if err := readDirFilesAux(dirPath, "", ch); err != nil {
 		log.Println("failure", err)
 		return err
 	}
@@ -24,14 +25,13 @@ func readDirFiles(dirpath string, ch chan fileContainer) error {
 	return nil
 }
 
-func readDirFiles2(basepath, aggregatedPath string, ch chan fileContainer) error {
-	pathToSearch := basepath
+func readDirFilesAux(basePath, aggregatedPath string, ch chan fileContainer) error {
+	pathToSearch := basePath
 	if aggregatedPath != "" {
-		pathToSearch = basepath + "/" + aggregatedPath
+		pathToSearch = basePath + "/" + aggregatedPath
 	}
 	entries, err := os.ReadDir(pathToSearch)
 	if err != nil {
-		log.Println("failure", err)
 		return err
 	}
 
@@ -41,13 +41,11 @@ func readDirFiles2(basepath, aggregatedPath string, ch chan fileContainer) error
 			path = entry.Name()
 		}
 		if entry.IsDir() {
-			err := readDirFiles2(basepath, path, ch)
+			err := readDirFilesAux(basePath, path, ch)
 			if err != nil {
-				log.Println("failure", err)
 				return err
 			}
 		} else {
-			log.Println("not dir", entry.Name())
 			ch <- fileContainer{
 				filename: entry.Name(),
 				filepath: path,
@@ -58,8 +56,7 @@ func readDirFiles2(basepath, aggregatedPath string, ch chan fileContainer) error
 	return nil
 }
 
-func (m *manager) Upload(ctx context.Context, args UploadArgs) error {
-	log.Println("start reading files")
+func (m *cliManager) Upload(ctx context.Context, args UploadArgs) error {
 	ch := make(chan fileContainer, 8)
 	go readDirFiles(args.SourcePath, ch)
 
@@ -77,11 +74,11 @@ func (m *manager) Upload(ctx context.Context, args UploadArgs) error {
 			}
 
 			wg.Add(1)
-			go func(forFile fileContainer) error {
+			go func(file fileContainer) error {
 				defer wg.Done()
-				f, err := os.Open(args.SourcePath + "/" + forFile.filepath)
+				f, err := os.Open(args.SourcePath + "/" + file.filepath)
 				if err != nil {
-					log.Println("file cant be opened", forFile.filepath)
+					m.logger.Error(err, "file can't be open", logger.String("filepath", file.filepath))
 					return err
 				}
 
@@ -90,12 +87,12 @@ func (m *manager) Upload(ctx context.Context, args UploadArgs) error {
 				if err = m.bunny.UploadFile(
 					ctx, &storage.File{
 						Buffer:          f,
-						Filename:        forFile.filepath,
+						Filename:        file.filepath,
 						DestinationPath: args.DestinationPath,
 						ContentType:     "",
 						CacheControl:    args.CacheControl,
 					}); err != nil {
-					log.Println("failure", err)
+					m.logger.Error(err, "upload file failure", logger.String("filename", file.filepath))
 					return err
 				}
 				return nil
@@ -105,6 +102,5 @@ func (m *manager) Upload(ctx context.Context, args UploadArgs) error {
 	}
 
 	wg.Wait()
-
 	return nil
 }

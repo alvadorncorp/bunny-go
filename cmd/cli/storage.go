@@ -1,20 +1,26 @@
 package main
 
 import (
-	"log"
 	"regexp"
 	"strings"
 
-	"github.com/alvadorncorp/bunny-go/internal/manager"
+	"github.com/alvadorncorp/bunny-go/internal/climgmt"
 	"github.com/alvadorncorp/bunny-go/pkg/api"
 	"github.com/spf13/cobra"
 )
 
-func uploadCmd(storageName, storageEndpoint, storageAPIKey *string) *cobra.Command {
+type storageFlags struct {
+	Name     string
+	Endpoint string
+	APIKey   string
+}
+
+func uploadCmd(storageFlags storageFlags) *cobra.Command {
 	var source, destination, pattern, cacheControl, contentEncoding string
 
 	upload := &cobra.Command{
-		Use: "upload",
+		Use:   "upload",
+		Short: "upload files",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var re *regexp.Regexp
 			if strings.TrimSpace(pattern) != "" {
@@ -27,9 +33,9 @@ func uploadCmd(storageName, storageEndpoint, storageAPIKey *string) *cobra.Comma
 
 			bunnyClient, err := api.New(
 				api.ClientParams{
-					StorageName:     *storageName,
-					StorageEndpoint: *storageEndpoint,
-					StorageKey:      *storageAPIKey,
+					StorageName:     storageFlags.Name,
+					StorageEndpoint: storageFlags.Endpoint,
+					StorageKey:      storageFlags.APIKey,
 					APIKey:          "",
 				})
 
@@ -37,15 +43,14 @@ func uploadCmd(storageName, storageEndpoint, storageAPIKey *string) *cobra.Comma
 				return err
 			}
 
-			m := manager.New(bunnyClient)
+			m := climgmt.New(bunnyClient)
 			return m.Upload(
-				cmd.Context(), manager.UploadArgs{
+				cmd.Context(), climgmt.UploadArgs{
 					Pattern:         re,
 					SourcePath:      source,
 					DestinationPath: destination,
 					CacheControl:    cacheControl,
 				})
-
 		},
 	}
 
@@ -59,20 +64,19 @@ func uploadCmd(storageName, storageEndpoint, storageAPIKey *string) *cobra.Comma
 	return upload
 }
 
-func main() {
-	var storageName, storageEndpoint, storageApiKey string
+func storageCmd() *cobra.Command {
+	var flags storageFlags
+
 	cmd := &cobra.Command{
-		Use: "api",
+		Use:   "storage",
+		Short: "storage <subcommand>",
 	}
 
-	flags := cmd.PersistentFlags()
-	flags.StringVarP(&storageName, "storage-name", "", "", "storage name")
-	flags.StringVarP(&storageEndpoint, "storage-endpoint", "", "br", "storage endpoint")
-	flags.StringVarP(&storageApiKey, "storage-api-key", "", "", "storage api key")
+	pFlags := cmd.PersistentFlags()
+	pFlags.StringVarP(&flags.Name, "name", "", "", "storage name")
+	pFlags.StringVarP(&flags.Endpoint, "endpoint", "", "br", "storage endpoint")
+	pFlags.StringVarP(&flags.APIKey, "api-key", "", "", "storage api key")
 
-	cmd.AddCommand(uploadCmd(&storageName, &storageEndpoint, &storageApiKey))
-
-	if err := cmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
+	cmd.AddCommand(uploadCmd(flags))
+	return cmd
 }
