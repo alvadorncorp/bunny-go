@@ -120,7 +120,7 @@ func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
 	}
 
 	if res.StatusCode < 400 {
-		loggerChild.Debug("request completed")
+		loggerChild.Info("file upload successfully")
 		return nil
 	}
 
@@ -129,6 +129,8 @@ func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
 		loggerChild.Error(err, "failure while reading failure response")
 		return err
 	}
+
+	loggerChild.Info("failure to upload file", logger.String("httpErr", string(body)))
 
 	return fmt.Errorf(string(body))
 }
