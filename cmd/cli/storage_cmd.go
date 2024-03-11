@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/alvadorncorp/bunny-go/internal/climgmt"
 	"github.com/alvadorncorp/bunny-go/internal/logger"
@@ -56,7 +54,6 @@ func validateUploadCmdOptions(opts uploadCmdFlags) error {
 
 func uploadCmd(storageFlags *storageCmdFlags) *cobra.Command {
 	var options uploadCmdFlags
-	var re *regexp.Regexp
 
 	upload := &cobra.Command{
 		Use:   "upload",
@@ -65,15 +62,6 @@ func uploadCmd(storageFlags *storageCmdFlags) *cobra.Command {
 			if err := validateUploadCmdOptions(options); err != nil {
 				return err
 			}
-
-			if strings.TrimSpace(options.pattern) != "" {
-				compiledRegexp, err := regexp.Compile(options.pattern)
-				if err != nil {
-					return err
-				}
-				re = compiledRegexp
-			}
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -99,10 +87,8 @@ func uploadCmd(storageFlags *storageCmdFlags) *cobra.Command {
 
 			return m.Upload(
 				cmd.Context(), climgmt.UploadArgs{
-					Pattern:         re,
 					SourcePath:      options.source,
 					DestinationPath: options.destination,
-					CacheControl:    options.cacheControl,
 				})
 		},
 	}
@@ -110,9 +96,6 @@ func uploadCmd(storageFlags *storageCmdFlags) *cobra.Command {
 	flags := upload.Flags()
 	flags.StringVarP(&options.source, "source-path", "", "", "source path")
 	flags.StringVarP(&options.destination, "destination-path", "", "", "destination path")
-	flags.StringVarP(&options.pattern, "pattern", "", "", "regex pattern for files")
-	flags.StringVarP(&options.cacheControl, "cache-control", "", "max-age=2592000", "cache control header")
-	flags.StringVarP(&options.contentEncoding, "content-encoding", "", "", "content encoding header")
 
 	return upload
 }

@@ -57,6 +57,10 @@ func New(params ClientParams, opts ...Option) (Client, error) {
 	}, nil
 }
 
-func (b bunny) UploadFile(ctx context.Context, file *storage.File) error {
+func (b bunny) UploadFile(ctx context.Context, file *storage.LocalFile) error {
 	return b.storageClient.UploadFile(ctx, file)
+}
+
+func (b bunny) ListFiles(ctx context.Context, path string) ([]storage.BunnyObjectRef, error) {
+	return b.storageClient.ListFiles(ctx, path)
 }

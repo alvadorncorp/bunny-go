@@ -2,7 +2,6 @@ package climgmt
 
 import (
 	"context"
-	"regexp"
 
 	"github.com/alvadorncorp/bunny-go/internal/bunny/storage"
 	"github.com/alvadorncorp/bunny-go/internal/logger"
@@ -16,11 +15,8 @@ type Manager interface {
 }
 
 type UploadArgs struct {
-	Pattern         *regexp.Regexp
 	SourcePath      string
 	DestinationPath string
-	CacheControl    string
-	ContentEncoding string
 }
 
 type cliManager struct {

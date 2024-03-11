@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,8 +16,23 @@ const (
 	storageApiUrl     = "storage.bunnycdn.com"
 )
 
+type BunnyObjectRef struct {
+	ID              string `json:"Guid"`
+	StorageZoneName string
+	Path            string
+	ObjectName      string
+	LastChanged     string
+	DateCreated     string
+	Length          int
+	StorageZoneID   int
+	UserID          string
+	ServerID        int
+	IsDirectory     bool
+}
+
 type Client interface {
-	UploadFile(ctx context.Context, file *File) error
+	UploadFile(ctx context.Context, file *LocalFile) error
+	ListFiles(ctx context.Context, path string) ([]BunnyObjectRef, error)
 }
 
 type storageClient struct {
@@ -68,12 +84,10 @@ func New(params ClientParams, options ...Option) (Client, error) {
 	return sc, nil
 }
 
-type File struct {
+type LocalFile struct {
 	Buffer          io.Reader
 	DestinationPath string
 	Filename        string
-	ContentType     string
-	CacheControl    string
 }
 
 func sanitizeDestinationPath(destinationPath string) string {
@@ -88,7 +102,7 @@ func sanitizeDestinationPath(destinationPath string) string {
 	return destinationPath
 }
 
-func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
+func (b *storageClient) UploadFile(ctx context.Context, f *LocalFile) error {
 	destination := f.Filename
 	if destinationPath := sanitizeDestinationPath(f.DestinationPath); destinationPath != "" {
 		destination = fmt.Sprintf("%s/%s", destinationPath, f.Filename)
@@ -110,7 +124,6 @@ func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
 	headers := req.Header
 	headers.Set("content-type", binaryContentType)
 	headers.Set("AccessKey", b.apiKey)
-	headers.Set("cache-control", f.CacheControl)
 
 	loggerChild.Debug("starting upload request...")
 	res, err := b.client.Do(req)
@@ -133,4 +146,33 @@ func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
 	loggerChild.Info("failure to upload file", logger.String("httpErr", string(body)))
 
 	return fmt.Errorf(string(body))
+}
+
+func (b *storageClient) ListFiles(ctx context.Context, path string) ([]BunnyObjectRef, error) {
+	url := b.baseAPIUrl
+	if path != "" {
+		url += "/" + path
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	headers := req.Header
+	headers.Set("AccessKey", b.apiKey)
+
+	res, err := b.client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var objects []BunnyObjectRef
+	if err = json.NewDecoder(res.Body).Decode(&objects); err != nil {
+		return nil, err
+	}
+
+	return objects, nil
 }

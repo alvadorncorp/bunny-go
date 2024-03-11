@@ -84,7 +84,7 @@ func (m *cliManager) Upload(ctx context.Context, args UploadArgs) error {
 				defer f.Close()
 
 				if err = m.bunny.UploadFile(
-					ctx, &storage.File{
+					ctx, &storage.LocalFile{
 						Buffer:          f,
 						Filename:        file.filepath,
 						DestinationPath: args.DestinationPath,
