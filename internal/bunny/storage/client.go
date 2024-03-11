@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/alvadorncorp/bunny-go/internal/logger"
 )
 
 const (
-	storageApiUrl = "storage.bunny.net"
+	binaryContentType = "application/octet-stream"
+	storageApiUrl     = "storage.bunnycdn.com"
 )
 
 type Client interface {
@@ -45,16 +47,16 @@ func WithLogger(logger logger.Logger) Option {
 }
 
 func New(params ClientParams, options ...Option) (Client, error) {
-	logClient, err := logger.NewZapLogger()
-	if err != nil {
-		return nil, err
+	url := fmt.Sprint("https://", params.StorageEndpoint, ".", storageApiUrl, "/", params.StorageName)
+	if params.StorageEndpoint == "" {
+		url = fmt.Sprint("https://", storageApiUrl, "/", params.StorageName)
 	}
 
 	sc := &storageClient{
 		client:     &http.Client{},
 		apiKey:     params.APIKey,
-		baseAPIUrl: fmt.Sprint("https://", params.StorageEndpoint, storageApiUrl, "/", params.StorageName, "/"),
-		logger:     logClient,
+		baseAPIUrl: url,
+		logger:     logger.NewMockLogger(),
 	}
 
 	for _, applyOption := range options {
@@ -74,36 +76,51 @@ type File struct {
 	CacheControl    string
 }
 
+func sanitizeDestinationPath(destinationPath string) string {
+	if strings.HasPrefix(destinationPath, "./") {
+		return destinationPath[2:]
+	}
+
+	if strings.HasPrefix(destinationPath, ".") {
+		return destinationPath[1:]
+	}
+
+	return destinationPath
+}
+
 func (b *storageClient) UploadFile(ctx context.Context, f *File) error {
 	destination := f.Filename
-	if f.DestinationPath != "" {
-		destination = fmt.Sprintf("%s/%s", f.DestinationPath, f.Filename)
+	if destinationPath := sanitizeDestinationPath(f.DestinationPath); destinationPath != "" {
+		destination = fmt.Sprintf("%s/%s", destinationPath, f.Filename)
 	}
 
-	path := fmt.Sprintf("%s/%s", b.baseAPIUrl, destination)
+	apiPath := fmt.Sprintf("%s/%s", b.baseAPIUrl, destination)
+	loggerChild := b.logger.With(
+		logger.String("context", "storageClient.uploadFile"),
+		logger.String("filename", f.Filename),
+		logger.String("api-path", apiPath),
+		logger.String("destination-path", destination))
 
-	loggerChild := b.logger.With(logger.String("path", path))
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, path, f.Buffer)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, apiPath, f.Buffer)
 	if err != nil {
-		loggerChild.Error(err, "new request failure")
+		loggerChild.Error(err, "new request creation failure")
 		return err
 	}
-	loggerChild.Debug("uploading file => start")
 
 	headers := req.Header
-	headers.Add("content-type", f.ContentType)
-	headers.Add("AccessKey", b.apiKey)
-	headers.Add("cache-control", f.CacheControl)
+	headers.Set("content-type", binaryContentType)
+	headers.Set("AccessKey", b.apiKey)
+	headers.Set("cache-control", f.CacheControl)
 
+	loggerChild.Debug("starting upload request...")
 	res, err := b.client.Do(req)
 	if err != nil {
-		loggerChild.Error(err, "uploading file => failure")
+		loggerChild.Error(err, "request failure")
 		return err
 	}
 
 	if res.StatusCode < 400 {
-		loggerChild.Debug("uploading file => completed")
+		loggerChild.Debug("request completed")
 		return nil
 	}
 

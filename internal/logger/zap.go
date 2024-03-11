@@ -1,20 +1,29 @@
 package logger
 
 import (
+	"os"
+	"time"
+
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type zapLogger struct {
 	logger *zap.Logger
 }
 
-func NewZapLogger() (Logger, error) {
-	l, err := zap.NewProduction()
-
-	if err != nil {
-		return nil, err
+func NewZapLogger(lvl zapcore.Level) (Logger, error) {
+	encoderCfg := zap.NewProductionEncoderConfig()
+	encoderCfg.TimeKey = "timestamp"
+	encoderCfg.EncodeTime = func(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {
+		timeStr := t.UTC().Format(time.RFC3339)
+		encoder.AppendString(timeStr)
 	}
+	jsonCfg := zapcore.NewJSONEncoder(encoderCfg)
+	ws := zapcore.Lock(os.Stdout)
+	atom := zap.NewAtomicLevelAt(lvl)
 
+	l := zap.New(zapcore.NewCore(jsonCfg, ws, atom))
 	return &zapLogger{
 		logger: l,
 	}, nil

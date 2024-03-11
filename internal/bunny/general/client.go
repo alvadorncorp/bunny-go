@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/alvadorncorp/bunny-go/internal/bunny"
+	"github.com/alvadorncorp/bunny-go/internal/logger"
 )
 
 const (
@@ -26,6 +27,7 @@ type bunnyClient struct {
 	baseAPIUrl string
 	client     *http.Client
 	apiKey     string
+	logger     logger.Logger
 }
 
 func WithHttpClient(hc *http.Client) Option {
@@ -34,11 +36,18 @@ func WithHttpClient(hc *http.Client) Option {
 	}
 }
 
+func WithLogger(log logger.Logger) Option {
+	return func(b *bunnyClient) {
+		b.logger = log
+	}
+}
+
 func New(params BunnyClientParams, options ...Option) Client {
 	client := &bunnyClient{
 		baseAPIUrl: bunnyAPIUrl,
 		client:     &http.Client{},
 		apiKey:     params.APIKey,
+		logger:     logger.NewMockLogger(),
 	}
 
 	for _, applyOption := range options {

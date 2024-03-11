@@ -9,6 +9,8 @@ import (
 	"github.com/alvadorncorp/bunny-go/pkg/api"
 )
 
+const maxConcurrency = 8
+
 type Manager interface {
 	Upload(ctx context.Context, args UploadArgs) error
 }
@@ -26,6 +28,6 @@ type cliManager struct {
 	logger logger.Logger
 }
 
-func New(bunny api.Client) Manager {
-	return &cliManager{bunny: bunny}
+func New(bunny api.Client, logger logger.Logger) Manager {
+	return &cliManager{bunny: bunny, logger: logger}
 }

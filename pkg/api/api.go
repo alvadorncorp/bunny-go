@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alvadorncorp/bunny-go/internal/bunny/storage"
+	"github.com/alvadorncorp/bunny-go/internal/logger"
 )
 
 type Client interface {
@@ -15,19 +16,37 @@ type bunny struct {
 }
 
 type ClientParams struct {
-	StorageName     string
-	StorageEndpoint string
-	StorageKey      string
-	APIKey          string
+	StorageName      string
+	StorageEndpoint  string
+	StorageAccessKey string
+	APIKey           string
 }
 
-func New(params ClientParams) (Client, error) {
+type optionalsParams struct {
+	logger logger.Logger
+}
+
+type Option = func(o *optionalsParams)
+
+func WithLogger(logger logger.Logger) Option {
+	return func(o *optionalsParams) {
+		o.logger = logger
+	}
+}
+
+func New(params ClientParams, opts ...Option) (Client, error) {
+	optParams := optionalsParams{}
+
+	for _, apply := range opts {
+		apply(&optParams)
+	}
+
 	storageClient, err := storage.New(
 		storage.ClientParams{
 			StorageEndpoint: params.StorageEndpoint,
 			StorageName:     params.StorageName,
-			APIKey:          params.APIKey,
-		})
+			APIKey:          params.StorageAccessKey,
+		}, storage.WithLogger(optParams.logger))
 
 	if err != nil {
 		return nil, err

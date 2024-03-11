@@ -2,7 +2,6 @@ package climgmt
 
 import (
 	"context"
-	"log"
 	"os"
 	"sync"
 
@@ -18,7 +17,6 @@ type fileContainer struct {
 func readDirFiles(dirPath string, ch chan fileContainer) error {
 	defer close(ch)
 	if err := readDirFilesAux(dirPath, "", ch); err != nil {
-		log.Println("failure", err)
 		return err
 	}
 
@@ -57,7 +55,7 @@ func readDirFilesAux(basePath, aggregatedPath string, ch chan fileContainer) err
 }
 
 func (m *cliManager) Upload(ctx context.Context, args UploadArgs) error {
-	ch := make(chan fileContainer, 8)
+	ch := make(chan fileContainer, maxConcurrency)
 	go readDirFiles(args.SourcePath, ch)
 
 	wg := &sync.WaitGroup{}
@@ -76,7 +74,8 @@ func (m *cliManager) Upload(ctx context.Context, args UploadArgs) error {
 			wg.Add(1)
 			go func(file fileContainer) error {
 				defer wg.Done()
-				f, err := os.Open(args.SourcePath + "/" + file.filepath)
+				filepath := args.SourcePath + "/" + file.filepath
+				f, err := os.Open(filepath)
 				if err != nil {
 					m.logger.Error(err, "file can't be open", logger.String("filepath", file.filepath))
 					return err
