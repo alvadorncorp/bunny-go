@@ -88,8 +88,6 @@ func (m *cliManager) Upload(ctx context.Context, args UploadArgs) error {
 						Buffer:          f,
 						Filename:        file.filepath,
 						DestinationPath: args.DestinationPath,
-						ContentType:     "",
-						CacheControl:    args.CacheControl,
 					}); err != nil {
 					m.logger.Error(err, "upload file failure", logger.String("filename", file.filepath))
 					return err
