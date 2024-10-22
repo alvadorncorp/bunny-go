@@ -41,16 +41,12 @@ func New(params ClientParams, opts ...Option) (Client, error) {
 		apply(&optParams)
 	}
 
-	storageClient, err := storage.New(
+	storageClient := storage.New(
 		storage.ClientParams{
 			StorageEndpoint: params.StorageEndpoint,
 			StorageName:     params.StorageName,
 			APIKey:          params.StorageAccessKey,
 		}, storage.WithLogger(optParams.logger))
-
-	if err != nil {
-		return nil, err
-	}
 
 	return &bunny{
 		storageClient: storageClient,

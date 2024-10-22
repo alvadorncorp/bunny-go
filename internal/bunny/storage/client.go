@@ -13,7 +13,7 @@ import (
 
 const (
 	binaryContentType = "application/octet-stream"
-	storageApiUrl     = "storage.bunnycdn.com"
+	apiUrl            = "storage.bunnycdn.com"
 )
 
 type BunnyObjectRef struct {
@@ -62,10 +62,17 @@ func WithLogger(logger logger.Logger) Option {
 	}
 }
 
-func New(params ClientParams, options ...Option) (Client, error) {
-	url := fmt.Sprint("https://", params.StorageEndpoint, ".", storageApiUrl, "/", params.StorageName)
+func WithTestUrl(baseApiURL string) Option {
+	return func(sc *storageClient) {
+		sc.baseAPIUrl = baseApiURL
+	}
+}
+
+func New(params ClientParams, options ...Option) Client {
+	url := fmt.Sprint("https://", params.StorageEndpoint, ".", apiUrl, "/", params.StorageName)
+
 	if params.StorageEndpoint == "" {
-		url = fmt.Sprint("https://", storageApiUrl, "/", params.StorageName)
+		url = fmt.Sprint("https://", apiUrl, "/", params.StorageName)
 	}
 
 	sc := &storageClient{
@@ -81,7 +88,7 @@ func New(params ClientParams, options ...Option) (Client, error) {
 
 	sc.logger = sc.logger.With(logger.String("client", "bunny-storage"))
 
-	return sc, nil
+	return sc
 }
 
 type LocalFile struct {
